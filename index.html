@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>Rumsdimensioner</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #f4f2ed;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    color: #2c2c2a;
+  }
+  #scene {
+    display: block;
+  }
+  #label {
+    position: absolute;
+    top: 24px;
+    left: 32px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888780;
+    font-weight: 400;
+  }
+  /* Dimensions-etiketter under varje skugga */
+  .dim-label {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #888780;
+    pointer-events: none;
+    text-align: center;
+    white-space: nowrap;
+  }
+  /* Förklarande text under tesseraktens etikett (visas bara i mt-läge) */
+  .tess-explanation {
+    margin-top: 10px;
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: #a8a59e;
+    line-height: 1.5;
+    font-weight: 400;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    white-space: normal;
+    max-width: 220px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .tess-explanation.visible {
+    opacity: 1;
+  }
+  /* Tesseraktens kontroller — borttagna, ersatta av global */
+  /* Wireframe-switch nere till vänster */
+  #global-controls {
+    position: absolute;
+    bottom: 24px;
+    left: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888780;
+    user-select: none;
+  }
+  #global-controls label {
+    cursor: pointer;
+  }
+  /* Switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .switch-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #d3d1c7;
+    border-radius: 20px;
+    transition: background 0.2s ease;
+  }
+  .switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #f4f2ed;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+  }
+  .switch input:checked + .switch-track {
+    background: #5f5e5a;
+  }
+  .switch input:checked + .switch-track .switch-thumb {
+    transform: translateX(16px);
+  }
+  /* About-knapp */
+  #about-button {
+    position: absolute;
+    top: 24px;
+    right: 32px;
+    background: transparent;
+    border: 1px solid #d3d1c7;
+    border-radius: 3px;
+    padding: 6px 14px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f5e5a;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+  #about-button:hover {
+    border-color: #888780;
+  }
+
+  /* Modal overlay */
+  #about-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(244, 242, 237, 0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #about-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #about-modal {
+    background: #fdfcf9;
+    border: 1px solid #d3d1c7;
+    max-width: 580px;
+    width: calc(100% - 64px);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    padding: 48px 56px 56px 56px;
+    position: relative;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.06);
+  }
+  #about-close {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    color: #888780;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    font-family: inherit;
+  }
+  #about-close:hover {
+    color: #2c2c2a;
+  }
+  #about-modal h1 {
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #888780;
+    font-weight: 400;
+    margin: 0 0 28px 0;
+  }
+  #about-modal h2 {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5f5e5a;
+    font-weight: 500;
+    margin: 28px 0 10px 0;
+  }
+  #about-modal p {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #4a4a47;
+    margin: 0 0 14px 0;
+  }
+  #about-modal .control-name {
+    color: #2c2c2a;
+    font-weight: 500;
+  }
+  #about-modal .lead {
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: #2c2c2a;
+  }
+  #about-modal .credit {
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid #e8e6df;
+    font-size: 11px;
+    color: #a8a59e;
+    font-style: italic;
+  }
+  .control-divider {
+    width: 1px;
+    height: 18px;
+    background: #d3d1c7;
+    margin: 0 6px;
+  }
+  /* 4D-trackpad under tesseraktens etikett */
+  .w-pad-wrap {
+    margin-top: 14px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: auto;
+  }
+  .w-pad-wrap.visible {
+    display: flex;
+  }
+  .w-pad {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: 1px solid #c0bdb3;
+    background: rgba(253, 252, 249, 0.4);
+    position: relative;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .w-pad:hover {
+    border-color: #888780;
+    background: rgba(253, 252, 249, 0.7);
+  }
+  .w-pad.dragging {
+    cursor: grabbing;
+    border-color: #5f5e5a;
+  }
+  .w-pad-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #888780;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .w-pad-axes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .w-pad-axes span {
+    position: absolute;
+    font-size: 8.5px;
+    color: #b0ada3;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+  }
+  .w-pad-h {
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .w-pad-v {
+    left: 50%;
+    top: 4px;
+    transform: translateX(-50%);
+  }
+  .w-pad-label {
+    margin-top: 8px;
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #a8a59e;
+  }
+
+  /* Manual rotation: switch ligger på samma rad som övriga reglage,
+     hint-texten ovanför är absolut-positionerad och påverkar inte radens höjd */
+  .manual-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .manual-hint {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: #a8a59e;
+    font-style: italic;
+    max-width: 220px;
+    line-height: 1.4;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    white-space: normal;
+  }
+  /* Visa hint bara när manual rotation är aktiv */
+  #global-controls.manual-active .manual-hint {
+    opacity: 1;
+  }
+
+  /* Inaktiverat tillstånd för manual-switch när tablå är aktivt */
+  #global-controls.disabled-manual .manual-wrap {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  /* Inaktiverat tillstånd för translucent-switchen (när wireframe är valt) */
+  #global-controls.disabled-switch #translucent-label,
+  #global-controls.disabled-switch #translucent-switch {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  /* Select */
+  #surface-mode {
+    background: transparent;
+    border: 1px solid #d3d1c7;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5f5e5a;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    margin-right: 6px;
+  }
+  #surface-mode:hover {
+    border-color: #888780;
+  }
+</style>
+</head>
+<body>
+<div id="label">Dimensions of space</div>
+<button id="about-button">About</button>
+<canvas id="scene"></canvas>
+
+<div id="about-overlay">
+  <div id="about-modal">
+    <button id="about-close" aria-label="Close">×</button>
+    <h1>Dimensions of space</h1>
+
+    <p class="lead">A meditation on dimensions and the shadows objects cast. Each form exists in its own number of dimensions but is rendered for you in 3D — and each casts a shadow on the floor below.</p>
+
+    <p>In the default view the shadows are physical — flat 2D projections of the objects above, the kind a light source would actually cast. The <span class="control-name">Mathematical tableau</span> mode shows something different: shadows that are exactly one dimension lower than the object itself.</p>
+
+    <h2>The four objects</h2>
+    <p><span class="control-name">Line</span> (1D), <span class="control-name">Plane</span> (2D), <span class="control-name">Cube</span> (3D), and <span class="control-name">Tesseract</span> (4D). The line, plane and cube rotate within their own dimensional space. The tesseract rotates through four dimensions — including planes that don't exist in our 3D world. What you see is its 3D projection, the same way a cube drawn on paper is a 2D projection of a 3D form.</p>
+
+    <h2>Surface</h2>
+    <p><span class="control-name">Wireframe</span> reveals the underlying structure — edges only, no surfaces. Useful for seeing the tesseract's full topology.</p>
+    <p><span class="control-name">Solid</span> renders the objects as filled grey forms.</p>
+    <p><span class="control-name">Colored</span> assigns a unique color to each face. The plane has 1 face (1 color), the cube has 6, and the tesseract has 24. Colors are indexed: the plane uses color 1, the cube colors 1–6, and the tesseract colors 1–24, so you can trace the same color across objects.</p>
+
+    <h2>Translucent</h2>
+    <p>Switches the surfaces to half-transparent so you can see through to the back. For the tesseract this reveals how the 24 faces overlap in 3D — places where multiple faces stack appear darker.</p>
+
+    <h2>Mathematical tableau</h2>
+    <p>Pauses all rotation and arranges each object so its shadow is one dimension lower than the object itself.</p>
+    <p>The line stands vertically and casts a point. The plane stands on its edge and casts a line. The cube rests with edges along the axes and casts a square. The tesseract is shown in its characteristic cube-within-a-cube form — and its shadow is rendered as a simple cube, the simplest 3D projection of a 4D form.</p>
+    <p>The tableau makes the staircase visible: <span class="control-name">point → line → square → cube</span>. Each shadow is the same shape as the object one dimension below it.</p>
+
+    <h2>Manual rotation</h2>
+    <p>Turning this on pauses the automatic rotation and lets you rotate the objects yourself. Hover over an object to highlight it, then drag to rotate. Each object only rotates within its own dimensional space — the line cannot rotate at all, the plane has one rotation plane, the cube three, and the tesseract six.</p>
+    <p>Drag horizontally to rotate around the vertical axis, drag vertically to tilt forward and back. <span class="control-name">Shift+drag</span> (or middle-click drag) rotates around the third axis.</p>
+    <p>Rotations propagate from higher to lower dimensions: dragging the cube also rotates the tesseract in the shared planes; dragging the plane rotates the plane, cube and tesseract together.</p>
+    <p>For the tesseract's two extra rotations into the fourth dimension, use the circular <span class="control-name">4D rotation</span> pad below its label. Drag horizontally for xw, vertically for yw. These rotations only affect the tesseract — the other objects don't have a fourth axis to rotate into.</p>
+
+    <p class="credit">Created by Partho — Pär Thorbjörnsson, May 2026.<br>Built with the help of Claude.</p>
+  </div>
+</div>
+
+<div class="dim-label" id="label-1d" data-anchor="0">1D — line</div>
+<div class="dim-label" id="label-2d" data-anchor="1">2D — plane</div>
+<div class="dim-label" id="label-3d" data-anchor="2">3D — cube</div>
+<div class="dim-label" id="label-4d" data-anchor="3">
+  4D — tesseract
+  <div class="w-pad-wrap" id="w-pad-wrap">
+    <div class="w-pad" id="w-pad">
+      <div class="w-pad-inner"></div>
+      <div class="w-pad-axes">
+        <span class="w-pad-h">xw</span>
+        <span class="w-pad-v">yw</span>
+      </div>
+    </div>
+    <div class="w-pad-label">4D rotation</div>
+  </div>
+  <div class="tess-explanation" id="tess-explanation">
+    The shadow shows the tesseract's<br>simplest 3D projection — a cube.<br>The form above shows its 4D structure.
+  </div>
+</div>
+
+<div id="global-controls">
+  <select id="surface-mode">
+    <option value="wireframe">Wireframe</option>
+    <option value="solid" selected>Solid</option>
+    <option value="colored">Colored</option>
+  </select>
+  <label for="translucent-toggle" id="translucent-label">Translucent</label>
+  <label class="switch" id="translucent-switch">
+    <input type="checkbox" id="translucent-toggle" checked>
+    <span class="switch-track"><span class="switch-thumb"></span></span>
+  </label>
+  <span class="control-divider"></span>
+  <label for="tableau-toggle">Mathematical tableau</label>
+  <label class="switch">
+    <input type="checkbox" id="tableau-toggle">
+    <span class="switch-track"><span class="switch-thumb"></span></span>
+  </label>
+  <span class="control-divider"></span>
+  <div class="manual-wrap">
+    <div class="manual-hint" id="manual-hint">Hold shift or use middle-click to rotate around the third axis</div>
+    <label for="manual-toggle" id="manual-label">Manual rotation</label>
+    <label class="switch" id="manual-switch">
+      <input type="checkbox" id="manual-toggle">
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+    </label>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function() {
+  const canvas = document.getElementById('scene');
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false
+  });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0xf4f2ed, 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(
+    35,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    100
+  );
+  // Kamerapositionen sätts dynamiskt i resize() så scenen alltid får plats
+
+  // ----- LJUSSÄTTNING -----
+  // Mjukt ambient ljus så scenen inte blir för kontrastrik
+  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+  scene.add(ambient);
+
+  // Huvudljus rakt ovanifrån — skuggor faller rakt ner under objekten
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+  dirLight.position.set(0, 8, 0.001); // mikroskopisk z-offset så Three.js orientation funkar
+  dirLight.target.position.set(0, 0, 0);
+  scene.add(dirLight.target);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.left = -8;
+  dirLight.shadow.camera.right = 8;
+  dirLight.shadow.camera.top = 4;
+  dirLight.shadow.camera.bottom = -4;
+  dirLight.shadow.camera.near = 0.5;
+  dirLight.shadow.camera.far = 20;
+  dirLight.shadow.bias = -0.0005;
+  scene.add(dirLight);
+
+  // Fyllnadsljus från fram-vänster — lyser upp framsidor (kastar inga skuggor)
+  const fillFront = new THREE.DirectionalLight(0xffffff, 0.35);
+  fillFront.position.set(-3, 2, 6);
+  scene.add(fillFront);
+
+  // Fyllnadsljus från fram-höger — kompletterar
+  const fillSide = new THREE.DirectionalLight(0xffffff, 0.25);
+  fillSide.position.set(4, 1.5, 4);
+  scene.add(fillSide);
+
+  // ----- GOLV (osynligt, men tar emot skuggor) -----
+  const floorGeo = new THREE.PlaneGeometry(40, 20);
+  const floorMat = new THREE.ShadowMaterial({ opacity: 0.28 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.001; // precis under origo så skuggor läggs på y=0
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // ----- OBJEKTEN -----
+  // Alla har "storlek 1" i sin egen rymd, dvs kantlängd 1
+  // Position: jämnt fördelade längs x-axeln
+  const SIZE = 1.2; // kantlängd, samma för alla
+  const SPACING = 2.6;
+  const positions = [-SPACING * 1.5, -SPACING * 0.5, SPACING * 0.5, SPACING * 1.5];
+
+  // Höjder: vi vill att den VISUELLA upplevelsen av "luft mellan objekt och golv"
+  // är likadan för alla. Stora objekt kastar stora skuggor som visuellt fyller
+  // gapet, så de behöver mer fysiskt avstånd för att kännas lika "svävande".
+  // Värdena är handjusterade för att ge enhetlig visuell separation.
+  const HEIGHTS = {
+    line: 1.4,      // smalt objekt, liten skugga, kan ligga lågt
+    plane: 1.6,     // platt men brett, lite mer
+    cube: 2.4,      // stor skugga, behöver mer höjd
+    tesseract: 2.2  // skuggan något mindre än kubens, lite lägre
+  };
+  // Säkerhetsmarginal för kubens rotation: dess hörn sticker som mest
+  // SIZE * sqrt(3) / 2 ≈ 1.04 ner från centrum. Med höjd 2.4 blir
+  // minsta luftspalt ≈ 1.36, gott och väl över golvet.
+
+  // Material — minimalistiskt grått
+  const solidMat = new THREE.MeshStandardMaterial({
+    color: 0xc8c5be,
+    roughness: 0.7,
+    metalness: 0.05,
+    side: THREE.DoubleSide
+  });
+
+  // Translucent grått — för solid-läge med translucent på
+  const translucentMat = new THREE.MeshStandardMaterial({
+    color: 0xc8c5be,
+    roughness: 0.7,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.35,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+
+  // 24 dämpade mid-century-färger, indexerade.
+  // Planet använder färg 0, kuben 0–5, tesserakten 0–23.
+  // Paletten är handcurerad: varma och kalla mixade, inget mättat skrik.
+  const PALETTE = [
+    0xc77a5b, // varm tegel
+    0x6b8a9a, // dämpat blågrått
+    0xa89968, // mossgul
+    0x8a5a6e, // dovt vinrött
+    0x5e7a5e, // skogsgrön
+    0xb89a5e, // ockra
+    0x4a6a7a, // pärlblå
+    0x9a6a4a, // bränd terrakotta
+    0x6a8a7a, // salviagrön
+    0x8a7a9a, // dämpat lila
+    0x7a5a4a, // kakao
+    0xa8a89a, // kalk
+    0x4a5a6a, // skiffer
+    0xc8a89a, // sandros
+    0x6a4a5a, // mörkt plommon
+    0x8a9a6a, // limegrå
+    0xa87a6a, // koralljord
+    0x5a6a8a, // dimblå
+    0x9a8a4a, // mosshonung
+    0x7a4a4a, // mörkt rödbrunt
+    0x4a7a6a, // teal
+    0xb8a86a, // senapsmustigt
+    0x8a8a8a, // varmgrå
+    0x6a5a4a  // mörk umbra
+  ];
+
+  // Skapa standardmaterial för varje färg (solid + translucent versioner)
+  const coloredMatsSolid = PALETTE.map(c => new THREE.MeshStandardMaterial({
+    color: c,
+    roughness: 0.7,
+    metalness: 0.05,
+    side: THREE.DoubleSide
+  }));
+  const coloredMatsTrans = PALETTE.map(c => new THREE.MeshStandardMaterial({
+    color: c,
+    roughness: 0.7,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.35,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  }));
+
+  // Material för wireframe-läget
+  const wireMat = new THREE.LineBasicMaterial({
+    color: 0x5f5e5a,
+    linewidth: 1
+  });
+
+  // Material för wireframe-skuggor på golvet
+  const wireShadowMat = new THREE.LineBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.32
+  });
+
+  // Lätt lutning som ska appliceras på alla
+  const TILT_X = 0.18;
+  const TILT_Z = 0.12;
+
+  // Container-grupper för varje objekt (gör rotation lättare att hantera senare)
+  const containers = [];
+
+  // Riktningen ljuset kommer från, normaliserad — används för skuggprojektion
+  // Måste matcha dirLight.position. Rakt ovanifrån.
+  const lightDir = new THREE.Vector3(0, 8, 0.001).normalize();
+
+  // Hjälpare: projicera en världspunkt ner på golvplanet (y=0) längs ljusriktningen
+  function projectToFloor(p) {
+    const t = p.y / lightDir.y;
+    return new THREE.Vector3(
+      p.x - t * lightDir.x,
+      0.002,
+      p.z - t * lightDir.z
+    );
+  }
+
+  // ===== 1D — LINJE =====
+  const lineContainer = new THREE.Group();
+  lineContainer.position.set(positions[0], HEIGHTS.line, 0);
+
+  // Solid-version: tunn cylinder
+  const lineGeo = new THREE.CylinderGeometry(0.008, 0.008, SIZE, 12);
+  const lineSolid = new THREE.Mesh(lineGeo, solidMat);
+  lineSolid.rotation.z = Math.PI / 2;
+  lineSolid.castShadow = true;
+
+  // Wireframe-version: en linjeprimitiv
+  const lineWireGeo = new THREE.BufferGeometry();
+  const lineWireVerts = new Float32Array([-SIZE/2, 0, 0, SIZE/2, 0, 0]);
+  lineWireGeo.setAttribute('position', new THREE.BufferAttribute(lineWireVerts, 3));
+  const lineWire = new THREE.Line(lineWireGeo, wireMat);
+
+  // Osynlig hit-mesh för wireframe-läget — fångar raycaster på hela linjens
+  // volym, inte bara på de få pixlarna där linjen är ritad. Tunn cylinder
+  // med större radie. Helt transparent.
+  const lineHitGeo = new THREE.CylinderGeometry(0.12, 0.12, SIZE, 12);
+  const invisibleHitMat = new THREE.MeshBasicMaterial({ visible: false });
+  const lineHit = new THREE.Mesh(lineHitGeo, invisibleHitMat);
+  lineHit.rotation.z = Math.PI / 2;
+
+  // Wireframe-skugga: en linjesegment som projiceras på golvet varje frame
+  const lineShadowGeo = new THREE.BufferGeometry();
+  const lineShadowVerts = new Float32Array(6); // 2 punkter * 3 koordinater
+  lineShadowGeo.setAttribute('position', new THREE.BufferAttribute(lineShadowVerts, 3));
+  const lineShadow = new THREE.Line(lineShadowGeo, wireShadowMat);
+  lineShadow.visible = false;
+  scene.add(lineShadow);
+
+  lineContainer.add(lineSolid);
+  lineContainer.add(lineWire);
+  lineContainer.add(lineHit);
+  lineContainer.rotation.x = TILT_X;
+  lineContainer.rotation.z = TILT_Z;
+  scene.add(lineContainer);
+  containers.push(lineContainer);
+
+  // ===== 2D — PLAN =====
+  const planeContainer = new THREE.Group();
+  planeContainer.position.set(positions[1], HEIGHTS.plane, 0);
+
+  // Solid-version (grå). Material byts dynamiskt vid colored/translucent.
+  const planeGeo = new THREE.BoxGeometry(SIZE, 0.003, SIZE);
+  const planeSolid = new THREE.Mesh(planeGeo, solidMat);
+  planeSolid.castShadow = true;
+
+  // Wireframe-version: 4 kanter, lokala koordinater (kring origo)
+  // Planet ligger horisontellt → kanter i xz-planet
+  const s = SIZE / 2;
+  const planeEdges = [
+    [-s, 0, -s], [ s, 0, -s], // back
+    [ s, 0, -s], [ s, 0,  s], // right
+    [ s, 0,  s], [-s, 0,  s], // front
+    [-s, 0,  s], [-s, 0, -s]  // left
+  ];
+  const planeWireGeo = new THREE.BufferGeometry();
+  const planeWireVerts = new Float32Array(planeEdges.flat());
+  planeWireGeo.setAttribute('position', new THREE.BufferAttribute(planeWireVerts, 3));
+  const planeWire = new THREE.LineSegments(planeWireGeo, wireMat);
+
+  // Osynlig hit-mesh för planet
+  const planeHitGeo = new THREE.BoxGeometry(SIZE, 0.05, SIZE);
+  const planeHit = new THREE.Mesh(planeHitGeo, invisibleHitMat);
+
+  // Wireframe-skugga: 4 kanter projicerade
+  const planeShadowGeo = new THREE.BufferGeometry();
+  const planeShadowVerts = new Float32Array(planeEdges.length * 3);
+  planeShadowGeo.setAttribute('position', new THREE.BufferAttribute(planeShadowVerts, 3));
+  const planeShadow = new THREE.LineSegments(planeShadowGeo, wireShadowMat);
+  planeShadow.visible = false;
+  scene.add(planeShadow);
+
+  planeContainer.add(planeSolid);
+  planeContainer.add(planeWire);
+  planeContainer.add(planeHit);
+  planeContainer.rotation.x = TILT_X;
+  planeContainer.rotation.z = TILT_Z;
+  scene.add(planeContainer);
+  containers.push(planeContainer);
+
+  // ===== 3D — KUB =====
+  const cubeContainer = new THREE.Group();
+  cubeContainer.position.set(positions[2], HEIGHTS.cube, 0);
+
+  // Solid-version (grå)
+  const cubeGeo = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
+  const cubeSolid = new THREE.Mesh(cubeGeo, solidMat);
+  cubeSolid.castShadow = true;
+
+  // Colored-version: BoxGeometry har 6 inbyggda grupper (en per yta) → array av material
+  // Färg 0–5 från paletten
+  const cubeColoredMatsSolid = [0,1,2,3,4,5].map(i => coloredMatsSolid[i]);
+  const cubeColoredMatsTrans = [0,1,2,3,4,5].map(i => coloredMatsTrans[i]);
+  const cubeColored = new THREE.Mesh(cubeGeo, cubeColoredMatsSolid);
+  cubeColored.castShadow = true;
+  cubeColored.visible = false;
+
+  // Wireframe-version: 12 kanter
+  const c = SIZE / 2;
+  const cubeVerts = [
+    [-c,-c,-c],[ c,-c,-c],[ c, c,-c],[-c, c,-c], // bakre yta
+    [-c,-c, c],[ c,-c, c],[ c, c, c],[-c, c, c]  // främre yta
+  ];
+  const cubeEdgePairs = [
+    [0,1],[1,2],[2,3],[3,0], // bak
+    [4,5],[5,6],[6,7],[7,4], // fram
+    [0,4],[1,5],[2,6],[3,7]  // sidor
+  ];
+  const cubeEdgeVerts = [];
+  cubeEdgePairs.forEach(([a, b]) => {
+    cubeEdgeVerts.push(...cubeVerts[a], ...cubeVerts[b]);
+  });
+  const cubeWireGeo = new THREE.BufferGeometry();
+  const cubeWireArr = new Float32Array(cubeEdgeVerts);
+  cubeWireGeo.setAttribute('position', new THREE.BufferAttribute(cubeWireArr, 3));
+  const cubeWire = new THREE.LineSegments(cubeWireGeo, wireMat);
+
+  // Osynlig hit-mesh för kuben (samma volym som cubeGeo men alltid synlig
+  // för raycaster, även när cubeSolid/cubeColored är osynliga)
+  const cubeHit = new THREE.Mesh(cubeGeo, invisibleHitMat);
+
+  // Wireframe-skugga
+  const cubeShadowGeo = new THREE.BufferGeometry();
+  const cubeShadowVerts = new Float32Array(cubeEdgePairs.length * 6);
+  cubeShadowGeo.setAttribute('position', new THREE.BufferAttribute(cubeShadowVerts, 3));
+  const cubeShadow = new THREE.LineSegments(cubeShadowGeo, wireShadowMat);
+  cubeShadow.visible = false;
+  scene.add(cubeShadow);
+
+  cubeContainer.add(cubeSolid);
+  cubeContainer.add(cubeColored);
+  cubeContainer.add(cubeWire);
+  cubeContainer.add(cubeHit);
+  cubeContainer.rotation.x = TILT_X;
+  cubeContainer.rotation.z = TILT_Z;
+  scene.add(cubeContainer);
+  containers.push(cubeContainer);
+
+  // ----- WIREFRAME TOGGLE -----
+  // Lämnar variabeln kvar för wireframe-skuggans uppdatering
+  let wireframeMode = false;
+
+  // ----- GLOBAL YTLÄGE-LOGIK -----
+  // Tar surfaceMode + translucent och uppdaterar alla objektets synlighet/material
+  function applySurfaceMode() {
+    const isWire = (surfaceMode === 'wireframe');
+    const isColored = (surfaceMode === 'colored');
+    wireframeMode = isWire; // för wireframe-skuggornas uppdateringsloop
+
+    // ===== LINJE =====
+    // Linjen är alltid en linje, oavsett läge. I wireframe används Line-primitiven,
+    // annars cylindern (som ser identisk ut för en så tunn linje).
+    lineSolid.visible = !isWire;
+    lineWire.visible = isWire;
+    lineShadow.visible = isWire;
+
+    // ===== PLAN =====
+    planeSolid.visible = !isWire;
+    planeWire.visible = isWire;
+    planeShadow.visible = isWire;
+    if (!isWire) {
+      // Välj material: grå eller färg 0, solid eller translucent
+      if (isColored) {
+        planeSolid.material = translucent ? coloredMatsTrans[0] : coloredMatsSolid[0];
+      } else {
+        planeSolid.material = translucent ? translucentMat : solidMat;
+      }
+    }
+
+    // ===== KUB =====
+    cubeSolid.visible = !isWire && !isColored;
+    cubeColored.visible = !isWire && isColored;
+    cubeWire.visible = isWire;
+    cubeShadow.visible = isWire;
+    if (!isWire) {
+      if (isColored) {
+        cubeColored.material = translucent ? cubeColoredMatsTrans : cubeColoredMatsSolid;
+      } else {
+        cubeSolid.material = translucent ? translucentMat : solidMat;
+      }
+    }
+
+    // ===== TESSERAKT =====
+    tessLines.visible = isWire;
+    tessShadow.visible = isWire;
+    tessFaceMesh.visible = !isWire;
+    if (!isWire) {
+      if (isColored) {
+        tessFaceMesh.material = translucent ? tessFaceMatsColoredTrans : tessFaceMatsColoredSolid;
+      } else {
+        tessFaceMesh.material = translucent ? tessFaceMatsGrayTrans : tessFaceMatsGraySolid;
+      }
+    }
+  }
+
+  // ===== 4D — TESSERAKT =====
+  // Renderas som wireframe (kub-i-kub med diagonaler) — projektion 4D→3D
+  // 16 vertices i 4D, 32 kanter
+  const tesseractContainer = new THREE.Group();
+  tesseractContainer.position.set(positions[3], HEIGHTS.tesseract, 0);
+
+  // 4D-vertices för en enhetstesserakt (sidlängd 2, från -1 till 1 i varje dimension)
+  // Vi skalar sen så storleken matchar SIZE
+  const tessVerts4D = [];
+  for (let x = -1; x <= 1; x += 2)
+    for (let y = -1; y <= 1; y += 2)
+      for (let z = -1; z <= 1; z += 2)
+        for (let w = -1; w <= 1; w += 2)
+          tessVerts4D.push([x, y, z, w]);
+
+  // Kanter: två vertices är förbundna om de skiljer sig i exakt EN koordinat
+  const tessEdges = [];
+  for (let i = 0; i < tessVerts4D.length; i++) {
+    for (let j = i + 1; j < tessVerts4D.length; j++) {
+      let diffs = 0;
+      for (let k = 0; k < 4; k++) {
+        if (tessVerts4D[i][k] !== tessVerts4D[j][k]) diffs++;
+      }
+      if (diffs === 1) tessEdges.push([i, j]);
+    }
+  }
+
+  // Ytor: en yta är fyra vertices där 2 koordinater är fixerade
+  // och 2 koordinater varierar (alla 4 kombinationer). Tesserakten har 24 ytor.
+  // Vi ordnar de fyra hörnen som en kvadrat (inte X) genom att gå moturs
+  // i (dim1, dim2)-planet: (-,-) → (+,-) → (+,+) → (-,+).
+  const tessFaces = [];
+  for (let dim1 = 0; dim1 < 4; dim1++) {
+    for (let dim2 = dim1 + 1; dim2 < 4; dim2++) {
+      const fixedDims = [0, 1, 2, 3].filter(d => d !== dim1 && d !== dim2);
+      for (const sign1 of [-1, 1]) {
+        for (const sign2 of [-1, 1]) {
+          // Hjälpare: hitta vertex-index med specifika dim1/dim2-värden,
+          // medan fixedDims är låsta till sign1/sign2
+          function findIdx(d1val, d2val) {
+            for (let i = 0; i < tessVerts4D.length; i++) {
+              const v = tessVerts4D[i];
+              if (v[fixedDims[0]] === sign1 &&
+                  v[fixedDims[1]] === sign2 &&
+                  v[dim1] === d1val &&
+                  v[dim2] === d2val) {
+                return i;
+              }
+            }
+            return -1;
+          }
+          // Ordna hörnen i fast ordning runt kvadraten
+          tessFaces.push([
+            findIdx(-1, -1),
+            findIdx( 1, -1),
+            findIdx( 1,  1),
+            findIdx(-1,  1)
+          ]);
+        }
+      }
+    }
+  }
+
+  // Skapa LineSegments för alla kanter — geometrin uppdateras varje frame
+  const tessGeometry = new THREE.BufferGeometry();
+  const tessPositions = new Float32Array(tessEdges.length * 2 * 3);
+  tessGeometry.setAttribute('position', new THREE.BufferAttribute(tessPositions, 3));
+  const tessMat = new THREE.LineBasicMaterial({
+    color: 0x5f5e5a,
+    linewidth: 1
+  });
+  const tessLines = new THREE.LineSegments(tessGeometry, tessMat);
+  tesseractContainer.add(tessLines);
+
+  // ----- TESSERAKT MED YTOR (24 stycken) -----
+  // Vi vill kunna rendera den som:
+  // - solid grå (alla 24 ytor)
+  // - solid colored (alla 24 ytor, 24 färger)
+  // - translucent grå
+  // - translucent colored
+  //
+  // BoxGeometry-tricket fungerar inte här (det är 6 ytor, inte 24).
+  // Istället: vi bygger geometrin som 24 grupper, en per yta, med 2 trianglar per grupp.
+  const tessFaceGeo = new THREE.BufferGeometry();
+  const tessFacePositions = new Float32Array(tessFaces.length * 6 * 3); // 6 vertices per yta
+  const tessFaceNormals = new Float32Array(tessFaces.length * 6 * 3);
+  tessFaceGeo.setAttribute('position', new THREE.BufferAttribute(tessFacePositions, 3));
+  tessFaceGeo.setAttribute('normal', new THREE.BufferAttribute(tessFaceNormals, 3));
+  // Lägg till en grupp per yta (6 vertices = 2 trianglar)
+  for (let f = 0; f < tessFaces.length; f++) {
+    tessFaceGeo.addGroup(f * 6, 6, f);
+  }
+
+  // Material-arrays för tesseraktens 24 ytor
+  // Solid grå-version: alla 24 grupper får samma grå material
+  const tessFaceMatsGraySolid = new Array(tessFaces.length).fill(solidMat);
+  // Translucent grå
+  const tessFaceMatsGrayTrans = new Array(tessFaces.length).fill(translucentMat);
+  // Colored solid: 24 unika färger
+  const tessFaceMatsColoredSolid = PALETTE.slice(0, tessFaces.length).map((_, i) => coloredMatsSolid[i]);
+  // Colored translucent
+  const tessFaceMatsColoredTrans = PALETTE.slice(0, tessFaces.length).map((_, i) => coloredMatsTrans[i]);
+
+  // Mesh med initial material-array (grå solid)
+  const tessFaceMesh = new THREE.Mesh(tessFaceGeo, tessFaceMatsGraySolid);
+  tessFaceMesh.visible = false;
+  tessFaceMesh.castShadow = true;
+  tesseractContainer.add(tessFaceMesh);
+
+  // Osynlig hit-mesh för tesserakten — delar geometri med tessFaceMesh så den
+  // automatiskt följer rotationerna. Alltid synlig för raycaster.
+  const tessHit = new THREE.Mesh(tessFaceGeo, invisibleHitMat);
+  tesseractContainer.add(tessHit);
+
+  // ----- TESSERAKT-LÄGE -----
+  // Vi har två globala kontroller:
+  // - surfaceMode: 'wireframe' | 'solid' | 'colored'
+  // - translucent: true/false (gäller solid och colored)
+  let surfaceMode = 'solid';
+  let translucent = true;
+
+  // Tesseraktens skugga — vi måste själva skapa skuggan eftersom Three.js
+  // inte renderar skuggor av Line-objekt. Vi projicerar 4D→3D och sen
+  // ritar linjerna direkt på golvplanet (y = 0.001) som mörka linjer.
+  const shadowGeometry = new THREE.BufferGeometry();
+  const shadowPositions = new Float32Array(tessEdges.length * 2 * 3);
+  shadowGeometry.setAttribute('position', new THREE.BufferAttribute(shadowPositions, 3));
+  const shadowMat = new THREE.LineBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.28,
+    linewidth: 1
+  });
+  const tessShadow = new THREE.LineSegments(shadowGeometry, shadowMat);
+  scene.add(tessShadow);
+
+  tesseractContainer.rotation.x = TILT_X;
+  tesseractContainer.rotation.z = TILT_Z;
+  scene.add(tesseractContainer);
+  containers.push(tesseractContainer);
+
+  // ----- 4D-MATEMATIK -----
+  // Rotationsmatriser i 4D — varje rotation sker i ett plan
+  function rotate4D(v, planeA, planeB, angle) {
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const out = v.slice();
+    const a = v[planeA];
+    const b = v[planeB];
+    out[planeA] = a * c - b * s;
+    out[planeB] = a * s + b * c;
+    return out;
+  }
+
+  // Projicera 4D → 3D med perspektivprojektion
+  // (känd metod: dela med (distance - w))
+  function project4Dto3D(v) {
+    const distance = 2.5;
+    const factor = 1 / (distance - v[3]);
+    return [v[0] * factor, v[1] * factor, v[2] * factor];
+  }
+
+  // ----- CONVEX HULL (3D) -----
+  // Enkel inkrementell algoritm för små punktmängder (16 punkter).
+  // Returnerar lista av trianglar [[a,b,c], ...] som index in i punktarrayen.
+  function convexHull3D(points) {
+    const n = points.length;
+    if (n < 4) return [];
+
+    // Hitta 4 punkter som inte är coplanara för att bygga initial tetraeder
+    // Vi börjar med extrempunkter för stabilitet
+    let i0 = 0, i1 = 0;
+    for (let i = 1; i < n; i++) {
+      if (points[i][0] < points[i0][0]) i0 = i;
+      if (points[i][0] > points[i1][0]) i1 = i;
+    }
+    let i2 = -1, maxDist = 0;
+    for (let i = 0; i < n; i++) {
+      if (i === i0 || i === i1) continue;
+      // Avstånd från punkten till linjen genom i0,i1
+      const dx = points[i1][0] - points[i0][0];
+      const dy = points[i1][1] - points[i0][1];
+      const dz = points[i1][2] - points[i0][2];
+      const px = points[i][0] - points[i0][0];
+      const py = points[i][1] - points[i0][1];
+      const pz = points[i][2] - points[i0][2];
+      // Korsprodukt magnitud / linjelängd
+      const cx = dy * pz - dz * py;
+      const cy = dz * px - dx * pz;
+      const cz = dx * py - dy * px;
+      const d = cx*cx + cy*cy + cz*cz;
+      if (d > maxDist) { maxDist = d; i2 = i; }
+    }
+    if (i2 === -1) return [];
+
+    let i3 = -1;
+    maxDist = 0;
+    // Normal till planet i0,i1,i2
+    const v01 = sub(points[i1], points[i0]);
+    const v02 = sub(points[i2], points[i0]);
+    const planeN = cross(v01, v02);
+    for (let i = 0; i < n; i++) {
+      if (i === i0 || i === i1 || i === i2) continue;
+      const v0i = sub(points[i], points[i0]);
+      const d = Math.abs(dot(planeN, v0i));
+      if (d > maxDist) { maxDist = d; i3 = i; }
+    }
+    if (i3 === -1) return [];
+
+    // Bygg initial tetraeder med korrekt orientering (utåt-pekande normaler)
+    const center = [
+      (points[i0][0] + points[i1][0] + points[i2][0] + points[i3][0]) / 4,
+      (points[i0][1] + points[i1][1] + points[i2][1] + points[i3][1]) / 4,
+      (points[i0][2] + points[i1][2] + points[i2][2] + points[i3][2]) / 4
+    ];
+
+    const faces = [];
+    function addFace(a, b, c) {
+      // Säkerställ utåt-pekande normal
+      const n = cross(sub(points[b], points[a]), sub(points[c], points[a]));
+      const toCenter = sub(center, points[a]);
+      if (dot(n, toCenter) > 0) {
+        // Normalen pekar inåt → vänd
+        faces.push([a, c, b]);
+      } else {
+        faces.push([a, b, c]);
+      }
+    }
+    addFace(i0, i1, i2);
+    addFace(i0, i1, i3);
+    addFace(i0, i2, i3);
+    addFace(i1, i2, i3);
+
+    // Inkrementellt: lägg till varje punkt en åt gången
+    const used = new Set([i0, i1, i2, i3]);
+    for (let i = 0; i < n; i++) {
+      if (used.has(i)) continue;
+      // Hitta alla ytor som "ses" av denna punkt (yttre normal pekar mot punkten)
+      const visibleFaces = [];
+      const visibleEdges = new Map(); // "a,b" → count
+      for (let f = 0; f < faces.length; f++) {
+        const [a, b, c] = faces[f];
+        const n = cross(sub(points[b], points[a]), sub(points[c], points[a]));
+        const toPoint = sub(points[i], points[a]);
+        if (dot(n, toPoint) > 1e-10) {
+          visibleFaces.push(f);
+          // Lägg till kanter
+          for (const [u, v] of [[a,b],[b,c],[c,a]]) {
+            const key = u < v ? `${u},${v}` : `${v},${u}`;
+            visibleEdges.set(key, (visibleEdges.get(key) || 0) + 1);
+          }
+        }
+      }
+      if (visibleFaces.length === 0) continue;
+
+      // Ta bort synliga ytor
+      visibleFaces.sort((a, b) => b - a);
+      for (const f of visibleFaces) faces.splice(f, 1);
+
+      // Hitta horisontkanter (de som bara delas av en synlig yta)
+      for (const [key, count] of visibleEdges) {
+        if (count === 1) {
+          const [u, v] = key.split(',').map(Number);
+          // Lägg till ny yta från punkten
+          addFace(u, v, i);
+        }
+      }
+      used.add(i);
+    }
+    return faces;
+  }
+
+  // Vektorhjälpare för convexHull3D
+  function sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+  function cross(a, b) { return [
+    a[1]*b[2] - a[2]*b[1],
+    a[2]*b[0] - a[0]*b[2],
+    a[0]*b[1] - a[1]*b[0]
+  ]; }
+  function dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+  function normalize(v) {
+    const m = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    return m > 0 ? [v[0]/m, v[1]/m, v[2]/m] : [0, 0, 0];
+  }
+
+  // ----- AUTOROTATION -----
+  // Varje objekt roterar långsamt i sin egen rymd
+  const rotState = {
+    plane_xy: 0,    // gemensam för 2D, 3D, 4D
+    cube_yz: 0,     // gemensam för 3D, 4D
+    cube_xz: 0,     // gemensam för 3D, 4D
+    tess_xw: 0,     // bara 4D
+    tess_yw: 0      // bara 4D
+  };
+
+  // Hastigheter (radianer per sekund) — alla långsamma
+  const speeds = {
+    plane_xy: 0.18,
+    cube_yz: 0.22,
+    cube_xz: 0.14,
+    tess_xw: 0.30,
+    tess_yw: 0.20
+  };
+
+  // Skala för tesseraktens 3D-projektion
+  const TESS_SCALE = SIZE * 0.6;
+
+  // Konstant xw-rotation som används i tablå-läget för att ge tesserakten
+  // den karaktäristiska kub-i-kub-formen i stillastående pose
+  const TABLEAU_XW_ANGLE = Math.PI / 6; // 30 grader
+
+  // Bounding box för senaste tesseraktprojektionen — används för att
+  // dimensionera 3D-skuggvolymen i tablå-läget
+  const tesseractBounds = { x: 1, y: 1, z: 1 };
+
+  function updateTesseract(tab = 0) {
+    // Uppdatera kantgeometrin baserat på aktuella 4D-rotationer
+    const posAttr = tessGeometry.attributes.position;
+    const shadowAttr = shadowGeometry.attributes.position;
+
+    // 4D- och 3D-rotationerna dämpas mot 0 när vi går in i tablå-läge.
+    // Men för att tesserakten ska se ut som en tesserakt (kub-i-kub) behöver
+    // den ha ETT konstant w-bidrag. Vi blandar in det när tab > 0.
+    const damp = 1 - tab;
+    const xw = rotState.tess_xw * damp + TABLEAU_XW_ANGLE * tab;
+    const yw = rotState.tess_yw * damp;
+    const xy = rotState.plane_xy * damp;
+    const yz = rotState.cube_yz * damp;
+    const xz = rotState.cube_xz * damp;
+
+    // Beräkna projicerade 3D-positioner för alla 16 vertices
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    const projected = tessVerts4D.map(v => {
+      let rotated = v.slice();
+      rotated = rotate4D(rotated, 0, 3, xw); // xw
+      rotated = rotate4D(rotated, 1, 3, yw); // yw
+      rotated = rotate4D(rotated, 0, 1, xy); // xy
+      rotated = rotate4D(rotated, 1, 2, yz); // yz
+      rotated = rotate4D(rotated, 0, 2, xz); // xz
+      const p = project4Dto3D(rotated);
+      const px = p[0] * TESS_SCALE;
+      const py = p[1] * TESS_SCALE;
+      const pz = p[2] * TESS_SCALE;
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+      if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+      return [px, py, pz];
+    });
+
+    // Spara bounding box så animateloopen kan storleksätta skuggvolymen
+    tesseractBounds.x = maxX - minX;
+    tesseractBounds.y = maxY - minY;
+    tesseractBounds.z = maxZ - minZ;
+
+    // Fyll i positionsbufferten för kanterna
+    for (let i = 0; i < tessEdges.length; i++) {
+      const [a, b] = tessEdges[i];
+      const pa = projected[a];
+      const pb = projected[b];
+      posAttr.array[i * 6 + 0] = pa[0];
+      posAttr.array[i * 6 + 1] = pa[1];
+      posAttr.array[i * 6 + 2] = pa[2];
+      posAttr.array[i * 6 + 3] = pb[0];
+      posAttr.array[i * 6 + 4] = pb[1];
+      posAttr.array[i * 6 + 5] = pb[2];
+    }
+    posAttr.needsUpdate = true;
+
+    // Ytorna: bygg trianglar för varje yta, men bara om de är synliga
+    // (annars onödigt arbete varje frame)
+    if (tessFaceMesh.visible) {
+      const facePosAttr = tessFaceGeo.attributes.position;
+      const faceNormAttr = tessFaceGeo.attributes.normal;
+      for (let f = 0; f < tessFaces.length; f++) {
+        const [v0, v1, v2, v3] = tessFaces[f];
+        const p0 = projected[v0];
+        const p1 = projected[v1];
+        const p2 = projected[v2];
+        const p3 = projected[v3];
+        // Beräkna normal för ytan
+        const n = normalize(cross(sub(p1, p0), sub(p3, p0)));
+        const off = f * 18; // 6 vertices × 3 koordinater
+        // Triangel 1: p0, p1, p2
+        facePosAttr.array[off + 0] = p0[0]; facePosAttr.array[off + 1] = p0[1]; facePosAttr.array[off + 2] = p0[2];
+        facePosAttr.array[off + 3] = p1[0]; facePosAttr.array[off + 4] = p1[1]; facePosAttr.array[off + 5] = p1[2];
+        facePosAttr.array[off + 6] = p2[0]; facePosAttr.array[off + 7] = p2[1]; facePosAttr.array[off + 8] = p2[2];
+        // Triangel 2: p0, p2, p3
+        facePosAttr.array[off + 9]  = p0[0]; facePosAttr.array[off + 10] = p0[1]; facePosAttr.array[off + 11] = p0[2];
+        facePosAttr.array[off + 12] = p2[0]; facePosAttr.array[off + 13] = p2[1]; facePosAttr.array[off + 14] = p2[2];
+        facePosAttr.array[off + 15] = p3[0]; facePosAttr.array[off + 16] = p3[1]; facePosAttr.array[off + 17] = p3[2];
+        // Normaler — samma för alla 6 vertices i ytan
+        for (let k = 0; k < 6; k++) {
+          faceNormAttr.array[off + k * 3]     = n[0];
+          faceNormAttr.array[off + k * 3 + 1] = n[1];
+          faceNormAttr.array[off + k * 3 + 2] = n[2];
+        }
+      }
+      facePosAttr.needsUpdate = true;
+      faceNormAttr.needsUpdate = true;
+    }
+
+    // Tesseraktens 3D-skuggvolym är nu en statisk kub som bara behöver
+    // positioneras — det görs i animate-loopen, inte här.
+
+
+    // Skugga: projicera tesseraktens 3D-projektion på golvplanet (y = 0)
+    // Vi använder den globala lightDir som matchar huvudljuset
+    // Container-position i världen (där tesserakten står)
+    const cx = tesseractContainer.position.x;
+    const cy = tesseractContainer.position.y;
+    const cz = tesseractContainer.position.z;
+    // Container-rotation (lutning)
+    const tiltMatrix = new THREE.Matrix4();
+    tiltMatrix.makeRotationFromEuler(new THREE.Euler(TILT_X, 0, TILT_Z, 'XYZ'));
+
+    for (let i = 0; i < tessEdges.length; i++) {
+      const [a, b] = tessEdges[i];
+      const pa = projected[a];
+      const pb = projected[b];
+
+      // Applicera container-lutning + position till världskoordinater
+      const va = new THREE.Vector3(pa[0], pa[1], pa[2]).applyMatrix4(tiltMatrix);
+      va.x += cx; va.y += cy; va.z += cz;
+      const vb = new THREE.Vector3(pb[0], pb[1], pb[2]).applyMatrix4(tiltMatrix);
+      vb.x += cx; vb.y += cy; vb.z += cz;
+
+      // Projicera ner på golvet (y = 0) längs ljusriktningen
+      // Strålen: P + t * (-lightDir), hitta t så y = 0
+      // P.y + t * (-lightDir.y) = 0 → t = P.y / lightDir.y
+      const ta = va.y / lightDir.y;
+      const tb = vb.y / lightDir.y;
+      const sa = {
+        x: va.x - ta * lightDir.x,
+        y: 0.002, // precis ovanför golvet
+        z: va.z - ta * lightDir.z
+      };
+      const sb = {
+        x: vb.x - tb * lightDir.x,
+        y: 0.002,
+        z: vb.z - tb * lightDir.z
+      };
+
+      shadowAttr.array[i * 6 + 0] = sa.x;
+      shadowAttr.array[i * 6 + 1] = sa.y;
+      shadowAttr.array[i * 6 + 2] = sa.z;
+      shadowAttr.array[i * 6 + 3] = sb.x;
+      shadowAttr.array[i * 6 + 4] = sb.y;
+      shadowAttr.array[i * 6 + 5] = sb.z;
+    }
+    shadowAttr.needsUpdate = true;
+  }
+
+  // ----- WIREFRAME-SKUGGOR -----
+  // Tar de lokala kanterna i en wireframe-geometri och projicerar dem
+  // till världskoordinater (via containerns transform) → ner på golvet
+  function updateWireShadow(container, sourceGeo, shadowGeo) {
+    const srcPos = sourceGeo.attributes.position.array;
+    const dstPos = shadowGeo.attributes.position.array;
+    const tmp = new THREE.Vector3();
+
+    // Tvinga uppdatering av containerns världsmatris
+    container.updateMatrixWorld(true);
+
+    for (let i = 0; i < srcPos.length; i += 3) {
+      tmp.set(srcPos[i], srcPos[i + 1], srcPos[i + 2]);
+      tmp.applyMatrix4(container.matrixWorld);
+      // Projicera ner på golvet längs ljusriktningen
+      const t = tmp.y / lightDir.y;
+      dstPos[i]     = tmp.x - t * lightDir.x;
+      dstPos[i + 1] = 0.002;
+      dstPos[i + 2] = tmp.z - t * lightDir.z;
+    }
+    shadowGeo.attributes.position.needsUpdate = true;
+  }
+
+  // ----- HOVER & DRAG (manuell rotation) -----
+  const raycaster = new THREE.Raycaster();
+  const pointerNDC = new THREE.Vector2();
+
+  // Mappa varje objekt till en lista av meshes som man kan klicka på.
+  // Vi använder dedikerade hit-meshes (osynliga) för att hela objektets volym
+  // ska vara klickbar oavsett wireframe/solid-läge. Wireframe-linjer är pixel-
+  // tunna och svåra att pricka annars.
+  function hitTargets() {
+    return [
+      { name: 'line', meshes: [lineHit] },
+      { name: 'plane', meshes: [planeHit] },
+      { name: 'cube', meshes: [cubeHit] },
+      { name: 'tesseract', meshes: [tessHit] }
+    ];
+  }
+
+  function pickAt(clientX, clientY) {
+    // Konvertera till normaliserade enhetskoordinater
+    pointerNDC.x = (clientX / window.innerWidth) * 2 - 1;
+    pointerNDC.y = -(clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointerNDC, camera);
+    // För wireframe-objekt vill vi acceptera närliggande träffar (raycaster
+    // mot Line är pixel-exakt) — sätt threshold för LineSegments.
+    raycaster.params.Line.threshold = 0.05;
+    raycaster.params.Points.threshold = 0.05;
+
+    const targets = hitTargets();
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const t of targets) {
+      for (const m of t.meshes) {
+        if (!m.visible) continue;
+        const hits = raycaster.intersectObject(m, false);
+        if (hits.length > 0 && hits[0].distance < nearestDist) {
+          nearestDist = hits[0].distance;
+          nearest = t.name;
+        }
+      }
+    }
+    return nearest;
+  }
+
+  // Applicera highlight på alla relevanta meshes för ett objekt
+  function setHighlight(name, on) {
+    const isWire = (surfaceMode === 'wireframe');
+    if (name === 'line') {
+      if (isWire) {
+        lineWire.material.color.setHex(on ? WIRE_HIGHLIGHT_COLOR : WIRE_NORMAL_COLOR);
+      } else {
+        lineSolid.material.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000);
+      }
+    } else if (name === 'plane') {
+      if (isWire) {
+        planeWire.material.color.setHex(on ? WIRE_HIGHLIGHT_COLOR : WIRE_NORMAL_COLOR);
+      } else {
+        planeSolid.material.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000);
+      }
+    } else if (name === 'cube') {
+      if (isWire) {
+        cubeWire.material.color.setHex(on ? WIRE_HIGHLIGHT_COLOR : WIRE_NORMAL_COLOR);
+      } else if (cubeColored.visible) {
+        // Material-array — applicera på alla 6 material
+        cubeColored.material.forEach(m => m.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000));
+      } else {
+        cubeSolid.material.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000);
+      }
+    } else if (name === 'tesseract') {
+      if (isWire) {
+        tessLines.material.color.setHex(on ? WIRE_HIGHLIGHT_COLOR : WIRE_NORMAL_COLOR);
+      } else if (Array.isArray(tessFaceMesh.material)) {
+        tessFaceMesh.material.forEach(m => m.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000));
+      } else if (tessFaceMesh.material.emissive) {
+        tessFaceMesh.material.emissive.setHex(on ? HOVER_EMISSIVE : 0x000000);
+      }
+    }
+  }
+
+  function updateHover(clientX, clientY) {
+    if (!manualActive || tableauActive) {
+      // Inget hover om manuell rotation är av eller tablå är på
+      if (hoveredObject && !draggedObject) {
+        setHighlight(hoveredObject, false);
+        hoveredObject = null;
+        canvas.style.cursor = 'default';
+      }
+      return;
+    }
+    if (draggedObject) return; // håll highlight på det objekt vi drar
+    const hit = pickAt(clientX, clientY);
+    if (hit !== hoveredObject) {
+      if (hoveredObject) setHighlight(hoveredObject, false);
+      if (hit) setHighlight(hit, true);
+      hoveredObject = hit;
+      canvas.style.cursor = hit ? 'grab' : 'default';
+    }
+  }
+
+  // Drag-mappning: standard arcball
+  // - drag horisontellt → rotation runt y-axeln (xy-planet)
+  // - drag vertikalt → rotation runt x-axeln (yz-planet)
+  // - shift+drag horisontellt → rotation runt z-axeln (xz-planet)
+  const DRAG_SENSITIVITY = 0.008; // radianer per pixel
+
+  function applyDragDelta(name, dx, dy, shift) {
+    // Smitta är inbyggd: rotState.plane_xy används av plan, kub, tesserakt.
+    // rotState.cube_yz/xz används av kub, tesserakt. Inget explicit smittsteg behövs.
+    if (name === 'plane') {
+      // Plan har bara xy
+      rotState.plane_xy += dx * DRAG_SENSITIVITY;
+    } else if (name === 'cube') {
+      // Kub har xy, yz, xz
+      if (shift) {
+        rotState.cube_xz += dx * DRAG_SENSITIVITY;
+      } else {
+        rotState.plane_xy += dx * DRAG_SENSITIVITY;
+      }
+      rotState.cube_yz += dy * DRAG_SENSITIVITY;
+    } else if (name === 'tesseract') {
+      // Tesserakt har xy, yz, xz (samma som kub) — w-rotationer styrs via paden
+      if (shift) {
+        rotState.cube_xz += dx * DRAG_SENSITIVITY;
+      } else {
+        rotState.plane_xy += dx * DRAG_SENSITIVITY;
+      }
+      rotState.cube_yz += dy * DRAG_SENSITIVITY;
+    }
+    // Linjen har inga rotationsplan — drag gör inget
+  }
+
+  // Pointer events
+  canvas.addEventListener('pointermove', (e) => {
+    if (draggedObject) {
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      applyDragDelta(draggedObject, dx, dy, e.shiftKey || dragStart.shift);
+      dragStart.x = e.clientX;
+      dragStart.y = e.clientY;
+      dragStart.shift = e.shiftKey;
+    } else {
+      updateHover(e.clientX, e.clientY);
+    }
+  });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!manualActive || tableauActive) return;
+    if (e.button !== 0 && e.button !== 1) return; // vänster eller mittknapp
+    const hit = pickAt(e.clientX, e.clientY);
+    if (hit) {
+      draggedObject = hit;
+      // Mittknapp tolkas som "shift"
+      const shiftLike = e.shiftKey || e.button === 1;
+      dragStart = { x: e.clientX, y: e.clientY, shift: shiftLike };
+      canvas.style.cursor = 'grabbing';
+      canvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    if (draggedObject) {
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      draggedObject = null;
+      canvas.style.cursor = hoveredObject ? 'grab' : 'default';
+    }
+  });
+
+  canvas.addEventListener('pointerleave', (e) => {
+    if (!draggedObject && hoveredObject) {
+      setHighlight(hoveredObject, false);
+      hoveredObject = null;
+      canvas.style.cursor = 'default';
+    }
+  });
+
+  // ----- 4D-TRACKPAD (för tesseraktens xw/yw-rotation) -----
+  // Cirkulär padel under tesseraktens etikett. Drag → ackumulerad rotation
+  // i xw (horisontell) och yw (vertikal). Kan snurra obegränsat.
+  const wPad = document.getElementById('w-pad');
+  let wPadDragging = false;
+  let wPadStart = null;
+  const W_PAD_SENSITIVITY = 0.012;
+
+  if (wPad) {
+    wPad.addEventListener('pointerdown', (e) => {
+      if (!manualActive || tableauActive) return;
+      wPadDragging = true;
+      wPadStart = { x: e.clientX, y: e.clientY };
+      wPad.setPointerCapture(e.pointerId);
+      wPad.classList.add('dragging');
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    wPad.addEventListener('pointermove', (e) => {
+      if (!wPadDragging) return;
+      const dx = e.clientX - wPadStart.x;
+      const dy = e.clientY - wPadStart.y;
+      rotState.tess_xw += dx * W_PAD_SENSITIVITY;
+      rotState.tess_yw += dy * W_PAD_SENSITIVITY;
+      wPadStart.x = e.clientX;
+      wPadStart.y = e.clientY;
+    });
+    wPad.addEventListener('pointerup', (e) => {
+      if (wPadDragging) {
+        try { wPad.releasePointerCapture(e.pointerId); } catch (err) {}
+        wPadDragging = false;
+        wPad.classList.remove('dragging');
+      }
+    });
+  }
+
+  // ----- ANIMATIONSLOOP -----
+  let lastTime = performance.now();
+  const SPEED_SCALE = 1.0; // global hastighet (kommer styras av slider senare)
+
+  // ----- MATEMATISK TABLÅ -----
+  // När tablauActive är true animeras objekten till en stillastående position
+  // där deras matematiska N-1-skuggor matchar fysiska ovanifrån-skuggor.
+  // tableauProgress: 0 = full animation, 1 = full tablå. Interpoleras mjukt.
+  let tableauActive = false;
+  let tableauProgress = 0;
+  const TABLEAU_TRANSITION_TIME = 1.2; // sekunder
+
+  // ----- MANUELL ROTATION -----
+  // När manualActive är true pausas autorotation och användaren styr objekten
+  // direkt med musen. Drag på ett objekt → rotation inom dess dimensionalitet.
+  let manualActive = false;
+  // Vilket objekt användaren drar (eller hovrar över)
+  let hoveredObject = null; // 'line' | 'plane' | 'cube' | 'tesseract' | null
+  let draggedObject = null;
+  let dragStart = null; // { x, y, shift }
+
+  // Wireframe-highlightfärg: dämpat tegelröd
+  const WIRE_HIGHLIGHT_COLOR = 0x8a4a3e;
+  const WIRE_NORMAL_COLOR = 0x5f5e5a;
+
+  // Solid/colored hover: emissive-tillägg (subtilt)
+  const HOVER_EMISSIVE = 0x1a1a18;
+
+  // I tablå-läget linjerar alla objekts underkanter horisontellt OVANFÖR
+  // tesseraktens 3D-skuggvolym (som vilar på golvet). Skuggan är nu en kub
+  // med sidlängd SIZE, så höjden är SIZE.
+  const TABLEAU_SHADOW_HEIGHT = SIZE;
+  const TABLEAU_AIR_GAP = 0.4; // luftspalt mellan skugga och objekt
+  // Underkanten på alla objekt sätts till denna y-koordinat
+  const TABLEAU_BASE_BOTTOM_Y = TABLEAU_SHADOW_HEIGHT + TABLEAU_AIR_GAP;
+
+  // easeInOutCubic
+  function ease(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // Tesseraktens 3D-skuggvolym — en enkel kub med samma sidlängd som 3D-kuben.
+  // Detta är ett pedagogiskt val: trappan punkt → linje → kvadrat → kub blir tydlig.
+  // Skuggan visar "tesseraktens enklaste 3D-projektion", medan formen ovanför visar
+  // dess 4D-struktur. Storleken matchar 3D-kuben för visuell parallell.
+  const tessShadowVolGeo = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
+  const tessShadowVolMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.20,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  const tessShadowVol = new THREE.Mesh(tessShadowVolGeo, tessShadowVolMat);
+  tessShadowVol.visible = false;
+  tessShadowVol.castShadow = false;
+  tessShadowVol.receiveShadow = false;
+  scene.add(tessShadowVol);
+
+  // Wireframe version: 12 kanter (vanlig kub)
+  const tessShadowVolWireGeo = new THREE.EdgesGeometry(tessShadowVolGeo);
+  const tessShadowVolWireMat = new THREE.LineBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.45
+  });
+  const tessShadowVolWire = new THREE.LineSegments(tessShadowVolWireGeo, tessShadowVolWireMat);
+  tessShadowVolWire.visible = false;
+  scene.add(tessShadowVolWire);
+
+  // Linjens punkt-skugga (en liten cirkel/disk på golvet under linjen i tablå-läget)
+  const linePointShadowGeo = new THREE.CircleGeometry(0.04, 16);
+  const pointShadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.32
+  });
+  const linePointShadow = new THREE.Mesh(linePointShadowGeo, pointShadowMat);
+  linePointShadow.rotation.x = -Math.PI / 2;
+  linePointShadow.position.set(positions[0], 0.003, 0);
+  linePointShadow.visible = false;
+  scene.add(linePointShadow);
+
+  // Planets linje-skugga (en tunn rektangel på golvet under planet i tablå-läget)
+  const planeLineShadowGeo = new THREE.PlaneGeometry(SIZE, 0.012);
+  const lineShadowFlatMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.85
+  });
+  const planeLineShadow = new THREE.Mesh(planeLineShadowGeo, lineShadowFlatMat);
+  planeLineShadow.rotation.x = -Math.PI / 2;
+  planeLineShadow.position.set(positions[1], 0.003, 0);
+  planeLineShadow.visible = false;
+  scene.add(planeLineShadow);
+
+  function animate(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    // Uppdatera tablå-progressen mjukt
+    const target = tableauActive ? 1 : 0;
+    if (tableauProgress !== target) {
+      const dir = target > tableauProgress ? 1 : -1;
+      tableauProgress += dir * dt / TABLEAU_TRANSITION_TIME;
+      tableauProgress = Math.max(0, Math.min(1, tableauProgress));
+    }
+    const tab = ease(tableauProgress); // 0..1
+
+    // Uppdatera rotationstillstånd — pausas helt när vi är i tablå
+    // eller när manuell rotation är aktiv
+    const autoActive = tab < 1 && !manualActive;
+    if (autoActive) {
+      const autoFactor = (1 - tab);
+      rotState.plane_xy += speeds.plane_xy * dt * SPEED_SCALE * autoFactor;
+      rotState.cube_yz += speeds.cube_yz * dt * SPEED_SCALE * autoFactor;
+      rotState.cube_xz += speeds.cube_xz * dt * SPEED_SCALE * autoFactor;
+      rotState.tess_xw += speeds.tess_xw * dt * SPEED_SCALE * autoFactor;
+      rotState.tess_yw += speeds.tess_yw * dt * SPEED_SCALE * autoFactor;
+    }
+
+    // ===== POSITIONER =====
+    // I tablå linjeras alla objekt så deras underkanter ligger på samma höjd,
+    // ovanför tesseraktens 3D-skuggvolym. Centrumhöjden är BASE_BOTTOM_Y + halv objektshöjd.
+    {
+      // Linjen i tablå står vertikalt med längd SIZE → halvhöjd = SIZE/2
+      const lineTabY = TABLEAU_BASE_BOTTOM_Y + SIZE / 2;
+      // Planet i tablå står vertikalt med höjd SIZE → halvhöjd = SIZE/2
+      const planeTabY = TABLEAU_BASE_BOTTOM_Y + SIZE / 2;
+      // Kuben i tablå har full höjd SIZE → halvhöjd = SIZE/2
+      const cubeTabY = TABLEAU_BASE_BOTTOM_Y + SIZE / 2;
+      // Tesserakten skalas upp i mt — applicera samma skala på dess bounds
+      const tessTabScaleVal = 1.0 * (1 - tab) + 1.5 * tab;
+      const tessTabY = TABLEAU_BASE_BOTTOM_Y + (tesseractBounds.y * tessTabScaleVal) / 2;
+
+      lineContainer.position.y = HEIGHTS.line * (1 - tab) + lineTabY * tab;
+      planeContainer.position.y = HEIGHTS.plane * (1 - tab) + planeTabY * tab;
+      cubeContainer.position.y = HEIGHTS.cube * (1 - tab) + cubeTabY * tab;
+      tesseractContainer.position.y = HEIGHTS.tesseract * (1 - tab) + tessTabY * tab;
+    }
+
+    // ===== LINJEN =====
+    // Animation: ligger ner (lineSolid har redan rotation.z = π/2 i sin lokala transform).
+    // Tablå: står upp (vertikal). Vi roterar containern runt z så att linjen reser sig.
+    // Live-position: containerns rotation = TILT_X kring x, TILT_Z kring z.
+    // Tablå-position: x = 0, z = -π/2 (linjen pekar uppåt)
+    {
+      const liveX = TILT_X;
+      const liveZ = TILT_Z;
+      const tabX = 0;
+      const tabZ = -Math.PI / 2;
+      lineContainer.rotation.x = liveX * (1 - tab) + tabX * tab;
+      lineContainer.rotation.z = liveZ * (1 - tab) + tabZ * tab;
+    }
+
+    // ===== PLANET =====
+    // Animation: ligger ner, roterar runt y. Tablå: står upp (vertikalt ark).
+    // Live: rotation.x = TILT_X, rotation.y = rotState.plane_xy, rotation.z = TILT_Z
+    // Tablå: rotation.x = -π/2 (vertikalt), rotation.y = 0, rotation.z = 0
+    {
+      const liveX = TILT_X;
+      const liveY = rotState.plane_xy;
+      const liveZ = TILT_Z;
+      const tabX = -Math.PI / 2;
+      const tabY = 0;
+      const tabZ = 0;
+      planeContainer.rotation.x = liveX * (1 - tab) + tabX * tab;
+      planeContainer.rotation.y = liveY * (1 - tab) + tabY * tab;
+      planeContainer.rotation.z = liveZ * (1 - tab) + tabZ * tab;
+    }
+
+    // ===== KUBEN =====
+    // Animation: roterar i alla tre plan. Tablå: ortogonal (alla rotationer = 0 förutom lutning).
+    // Live: y = plane_xy, x = TILT_X + cube_yz, z = TILT_Z + cube_xz
+    // Tablå: y = 0, x = 0, z = 0 (kuben står precis rakt med kanter parallella med axlarna)
+    {
+      const liveX = TILT_X + rotState.cube_yz;
+      const liveY = rotState.plane_xy;
+      const liveZ = TILT_Z + rotState.cube_xz;
+      const tabX = 0;
+      const tabY = 0;
+      const tabZ = 0;
+      cubeContainer.rotation.x = liveX * (1 - tab) + tabX * tab;
+      cubeContainer.rotation.y = liveY * (1 - tab) + tabY * tab;
+      cubeContainer.rotation.z = liveZ * (1 - tab) + tabZ * tab;
+    }
+
+    // ===== TESSERAKTEN =====
+    // 4D-rotationer interpoleras mot 0 så w-axeln pekar "rent" — då blir
+    // 3D-projektionen en kub. Container-lutningen interpoleras till noll.
+    {
+      const tabX = 0;
+      const tabZ = 0;
+      tesseractContainer.rotation.x = TILT_X * (1 - tab) + tabX * tab;
+      tesseractContainer.rotation.z = TILT_Z * (1 - tab) + tabZ * tab;
+      tesseractContainer.rotation.y = 0;
+      // Skala upp tesserakten i mt så att dess yttre kub matchar skuggans storlek (SIZE).
+      // Med xw=30° och perspektivprojektion blir den yttre projicerade kuben ca 0.91 × TESS_SCALE.
+      // För att den ska bli SIZE/2 i halvbredd: scale = (SIZE/2) / (TESS_SCALE * 0.91 * 0.5 * 2) ≈ 1.0/0.91 ≈ 1.1
+      // Men vi vill matcha visuellt — testar 1.45 baserat på TESS_SCALE = SIZE*0.6
+      const liveScale = 1.0;
+      const tabScale = 1.5;
+      const s = liveScale * (1 - tab) + tabScale * tab;
+      tesseractContainer.scale.set(s, s, s);
+    }
+    updateTesseract(tab); // skicka in tab så updateTesseract kan dämpa 4D-rotationerna
+
+    // ===== TABLÅ-SKUGGOR =====
+    // Visa de matematiska skuggorna när vi är i tablå (eller på väg dit)
+    const showTableauShadows = tab > 0.01;
+    const useWireShadow = (surfaceMode === 'wireframe');
+
+    linePointShadow.visible = showTableauShadows;
+    planeLineShadow.visible = showTableauShadows;
+    // Tesseraktens 3D-skugga: solid eller wireframe beroende på surface-mode
+    tessShadowVol.visible = showTableauShadows && !useWireShadow;
+    tessShadowVolWire.visible = showTableauShadows && useWireShadow;
+
+    // Fade in/ut opaciteten med tab
+    pointShadowMat.opacity = 0.32 * tab;
+    lineShadowFlatMat.opacity = 0.85 * tab;
+    tessShadowVolMat.opacity = 0.20 * tab;
+    tessShadowVolWireMat.opacity = 0.45 * tab;
+
+    // Stäng av tesseraktens fysiska skugga i tablå så den inte krockar
+    // med den matematiska 3D-volymen.
+    tessFaceMesh.castShadow = (tab < 0.5);
+
+    // I tablå ska tesseraktens vanliga wireframe-skugga (linjeprojektion på golvet)
+    // släckas — den ersätts av wireframe-versionen av 3D-skuggvolymen
+    if (showTableauShadows) {
+      tessShadow.visible = false;
+    } else if (surfaceMode === 'wireframe') {
+      tessShadow.visible = true;
+    }
+
+    // Positionera tesseraktens kub-skugga: centrerad i x på tesseraktens kolumn,
+    // sittande med undersida på golvet (centrum på SIZE/2)
+    if (showTableauShadows) {
+      tessShadowVol.position.set(positions[3], SIZE / 2 + 0.001, 0);
+      tessShadowVolWire.position.set(positions[3], SIZE / 2 + 0.001, 0);
+    }
+
+    // Wireframe-skuggor — projicera kanterna på golvet (bara om wireframe-läge aktivt)
+    if (wireframeMode) {
+      updateWireShadow(lineContainer, lineWireGeo, lineShadowGeo);
+      updateWireShadow(planeContainer, planeWireGeo, planeShadowGeo);
+      updateWireShadow(cubeContainer, cubeWireGeo, cubeShadowGeo);
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+
+  // ----- RESPONSIVT -----
+  // Använd ResizeObserver för att fånga containerstorlek pålitligt
+  // (window.resize triggas inte alltid när embedded view ändras)
+
+  // Beräkna komponovationens bredd och höjd i världskoordinater
+  // för att kunna anpassa kameran så allt alltid får plats — i båda lägen
+  const SCENE_WIDTH = SPACING * 4 + SIZE * 2;
+  const liveMaxY = HEIGHTS.cube + SIZE * 1.2;
+  const tableauMaxY = TABLEAU_BASE_BOTTOM_Y + SIZE * 1.2;
+  const SCENE_HEIGHT = Math.max(liveMaxY, tableauMaxY);
+
+  function resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w === 0 || h === 0) return;
+
+    // setSize utan false: uppdaterar både canvas width/height-attribut OCH CSS-storlek
+    // så proportionerna blir korrekta
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+
+    // Beräkna kameraavstånd så att hela scenen alltid får plats horisontellt OCH vertikalt
+    const fovRad = camera.fov * Math.PI / 180;
+    const distV = (SCENE_HEIGHT / 2) / Math.tan(fovRad / 2);
+    const distH = (SCENE_WIDTH / 2) / Math.tan(fovRad / 2) / camera.aspect;
+    const dist = Math.max(distV, distH) * 1.15;
+
+    camera.position.set(0, 4.0, dist);
+    camera.lookAt(0, 1.0, 0);
+    camera.updateProjectionMatrix();
+  }
+
+  // Initial resize
+  resize();
+
+  // Lyssna på både window-resize OCH ResizeObserver för säkerhets skull
+  window.addEventListener('resize', resize);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    ro.observe(document.body);
+  }
+
+  // ----- KONTROLLER -----
+  const surfaceSelect = document.getElementById('surface-mode');
+  const translucentToggle = document.getElementById('translucent-toggle');
+  const globalControls = document.getElementById('global-controls');
+
+  function syncControls() {
+    // När wireframe är valt: gråa ut translucent-switchen
+    if (surfaceMode === 'wireframe') {
+      globalControls.classList.add('disabled-switch');
+    } else {
+      globalControls.classList.remove('disabled-switch');
+    }
+    applySurfaceMode();
+  }
+
+  surfaceSelect.addEventListener('change', (e) => {
+    surfaceMode = e.target.value;
+    syncControls();
+  });
+  translucentToggle.addEventListener('change', (e) => {
+    translucent = e.target.checked;
+    syncControls();
+  });
+
+  const tableauToggle = document.getElementById('tableau-toggle');
+  const tessExplanation = document.getElementById('tess-explanation');
+  const wPadWrap = document.getElementById('w-pad-wrap');
+  const manualToggle = document.getElementById('manual-toggle');
+  const manualLabel = document.getElementById('manual-label');
+
+  function updateManualUiVisibility() {
+    // 4D-paden visas bara när manuell rotation är på och tablå är av
+    if (manualActive && !tableauActive) {
+      wPadWrap.classList.add('visible');
+    } else {
+      wPadWrap.classList.remove('visible');
+    }
+    // Hint-texten ovanför manual-switchen syns bara när manuell är aktiv
+    if (manualActive && !tableauActive) {
+      globalControls.classList.add('manual-active');
+    } else {
+      globalControls.classList.remove('manual-active');
+    }
+    // Tablå inaktiverar manual-switchen
+    if (tableauActive) {
+      globalControls.classList.add('disabled-manual');
+    } else {
+      globalControls.classList.remove('disabled-manual');
+    }
+  }
+
+  tableauToggle.addEventListener('change', (e) => {
+    tableauActive = e.target.checked;
+    // Om tablå aktiveras: stäng av manuell rotation automatiskt
+    if (tableauActive && manualActive) {
+      manualActive = false;
+      manualToggle.checked = false;
+      // Rensa eventuell hover/drag
+      if (hoveredObject) { setHighlight(hoveredObject, false); hoveredObject = null; }
+      draggedObject = null;
+      canvas.style.cursor = 'default';
+    }
+    // Vid både aktivering och avaktivering: normalisera ackumulerade rotations-
+    // värden till [-π, π] så övergången inte tar flera varv.
+    const norm = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    rotState.plane_xy = norm(rotState.plane_xy);
+    rotState.cube_yz = norm(rotState.cube_yz);
+    rotState.cube_xz = norm(rotState.cube_xz);
+    rotState.tess_xw = norm(rotState.tess_xw);
+    rotState.tess_yw = norm(rotState.tess_yw);
+    // Toggla förklarande texten under tesseraktens etikett
+    if (tableauActive) {
+      tessExplanation.classList.add('visible');
+    } else {
+      tessExplanation.classList.remove('visible');
+    }
+    updateManualUiVisibility();
+  });
+
+  manualToggle.addEventListener('change', (e) => {
+    manualActive = e.target.checked;
+    // Vid avaktivering: rensa hover/drag
+    if (!manualActive) {
+      if (hoveredObject) { setHighlight(hoveredObject, false); hoveredObject = null; }
+      draggedObject = null;
+      canvas.style.cursor = 'default';
+    }
+    updateManualUiVisibility();
+  });
+
+  // Initiera ytläget
+  syncControls();
+
+  // ----- DIMENSIONSETIKETTER UNDER SKUGGORNA -----
+  // Etiketterna placeras i 2D-skärmkoordinater under varje objekts skugga.
+  // Skuggans centrum = objektets centrum projicerat ner på golvet längs ljusriktningen.
+  const labels = [
+    document.getElementById('label-1d'),
+    document.getElementById('label-2d'),
+    document.getElementById('label-3d'),
+    document.getElementById('label-4d')
+  ];
+  // Marginal i pixlar mellan skuggans nedre kant och etiketten
+  const LABEL_MARGIN = 18;
+
+  function updateLabels() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Med ljus rakt ovanifrån hamnar skuggan rakt under objektet.
+    // Vi projicerar en punkt på golvet vid objektets x-position och lite framåt
+    // (så etiketten hamnar framför skuggan, inte mitt i den).
+    const objects = [
+      { x: positions[0], reach: SIZE * 0.55 },
+      { x: positions[1], reach: SIZE * 0.65 },
+      { x: positions[2], reach: SIZE * 0.75 },
+      { x: positions[3], reach: SIZE * 0.75 }
+    ];
+    const tmp = new THREE.Vector3();
+    for (let i = 0; i < 4; i++) {
+      const obj = objects[i];
+      // Punkt på golvet (y=0), vid objektets x, lite framåt i z
+      tmp.set(obj.x, 0, obj.reach);
+      // Konvertera till skärmkoordinater
+      tmp.project(camera);
+      const sx = (tmp.x * 0.5 + 0.5) * w;
+      const sy = (-tmp.y * 0.5 + 0.5) * h;
+      labels[i].style.left = sx + 'px';
+      labels[i].style.top = (sy + LABEL_MARGIN) + 'px';
+    }
+  }
+
+  // Uppdatera etiketter efter varje render
+  const origAnimate = animate;
+  // Kör uppdatering även från resize
+  function fullResize() {
+    resize();
+    updateLabels();
+  }
+  window.addEventListener('resize', updateLabels);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro2 = new ResizeObserver(updateLabels);
+    ro2.observe(document.body);
+  }
+  // Och kontinuerligt
+  function animateLabels() {
+    updateLabels();
+    requestAnimationFrame(animateLabels);
+  }
+  animateLabels();
+  // ----- ABOUT-MODAL -----
+  const aboutButton = document.getElementById('about-button');
+  const aboutOverlay = document.getElementById('about-overlay');
+  const aboutClose = document.getElementById('about-close');
+
+  function openAbout() {
+    aboutOverlay.classList.add('visible');
+  }
+  function closeAbout() {
+    aboutOverlay.classList.remove('visible');
+  }
+  aboutButton.addEventListener('click', openAbout);
+  aboutClose.addEventListener('click', closeAbout);
+  // Klick utanför modalen stänger
+  aboutOverlay.addEventListener('click', (e) => {
+    if (e.target === aboutOverlay) closeAbout();
+  });
+  // Escape stänger
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAbout();
+  });
+})();
+</script>
+</body>
+</html>
